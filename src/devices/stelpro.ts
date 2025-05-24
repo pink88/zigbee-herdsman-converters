@@ -1,40 +1,39 @@
-import fz from '../converters/fromZigbee';
-import tz from '../converters/toZigbee';
-import * as constants from '../lib/constants';
-import * as exposes from '../lib/exposes';
-import * as legacy from '../lib/legacy';
-import * as reporting from '../lib/reporting';
-import {DefinitionWithExtend, Fz} from '../lib/types';
+import * as fz from "../converters/fromZigbee";
+import * as tz from "../converters/toZigbee";
+import * as constants from "../lib/constants";
+import * as exposes from "../lib/exposes";
+import * as reporting from "../lib/reporting";
+import type {DefinitionWithExtend, Fz} from "../lib/types";
 
 const e = exposes.presets;
 
 const fzLocal = {
     power: {
-        cluster: 'hvacThermostat',
-        type: ['attributeReport', 'readResponse'],
+        cluster: "hvacThermostat",
+        type: ["attributeReport", "readResponse"],
         convert: (model, msg, publish, options, meta) => {
-            if (msg.data['16392'] !== undefined) {
-                return {power: msg.data['16392']};
+            if (msg.data["16392"] !== undefined) {
+                return {power: msg.data["16392"]};
             }
         },
     } satisfies Fz.Converter,
     energy: {
-        cluster: 'hvacThermostat',
-        type: ['attributeReport', 'readResponse'],
+        cluster: "hvacThermostat",
+        type: ["attributeReport", "readResponse"],
         convert: (model, msg, publish, options, meta) => {
-            if (msg.data['16393'] !== undefined) {
-                return {energy: parseFloat(msg.data['16393']) / 1000};
+            if (msg.data["16393"] !== undefined) {
+                return {energy: Number.parseFloat(msg.data["16393"]) / 1000};
             }
         },
     } satisfies Fz.Converter,
 };
 
-const definitions: DefinitionWithExtend[] = [
+export const definitions: DefinitionWithExtend[] = [
     {
-        zigbeeModel: ['HT402'],
-        model: 'HT402',
-        vendor: 'Stelpro',
-        description: 'Hilo thermostat',
+        zigbeeModel: ["HT402"],
+        model: "HT402",
+        vendor: "Stelpro",
+        description: "Hilo thermostat",
         fromZigbee: [fz.stelpro_thermostat, fz.hvac_user_interface, fzLocal.power, fzLocal.energy],
         toZigbee: [
             tz.thermostat_local_temperature,
@@ -53,14 +52,14 @@ const definitions: DefinitionWithExtend[] = [
             e.energy(),
             e
                 .climate()
-                .withSetpoint('occupied_heating_setpoint', 5, 30, 0.5)
+                .withSetpoint("occupied_heating_setpoint", 5, 30, 0.5)
                 .withLocalTemperature()
-                .withSystemMode(['heat'])
-                .withRunningState(['idle', 'heat']),
+                .withSystemMode(["heat"])
+                .withRunningState(["idle", "heat"]),
         ],
         configure: async (device, coordinatorEndpoint) => {
             const endpoint = device.getEndpoint(25);
-            const binds = ['genBasic', 'genIdentify', 'genGroups', 'hvacThermostat', 'hvacUserInterfaceCfg', 'msTemperatureMeasurement'];
+            const binds = ["genBasic", "genIdentify", "genGroups", "hvacThermostat", "hvacUserInterfaceCfg", "msTemperatureMeasurement"];
             await reporting.bind(endpoint, coordinatorEndpoint, binds);
             await reporting.thermostatTemperature(endpoint);
             await reporting.thermostatOccupiedHeatingSetpoint(endpoint);
@@ -68,16 +67,16 @@ const definitions: DefinitionWithExtend[] = [
             await reporting.thermostatPIHeatingDemand(endpoint);
             await reporting.thermostatKeypadLockMode(endpoint);
             // Has Unknown power source, force it.
-            device.powerSource = 'Mains (single phase)';
+            device.powerSource = "Mains (single phase)";
             device.save();
         },
     },
     {
-        zigbeeModel: ['ST218'],
-        model: 'ST218',
-        vendor: 'Stelpro',
-        description: 'Ki convector, line-voltage thermostat',
-        fromZigbee: [legacy.fz.stelpro_thermostat, legacy.fz.hvac_user_interface],
+        zigbeeModel: ["ST218"],
+        model: "ST218",
+        vendor: "Stelpro",
+        description: "Ki convector, line-voltage thermostat",
+        fromZigbee: [fz.stelpro_thermostat, fz.hvac_user_interface],
         toZigbee: [
             tz.thermostat_local_temperature,
             tz.thermostat_occupancy,
@@ -93,15 +92,15 @@ const definitions: DefinitionWithExtend[] = [
             e.keypad_lockout(),
             e
                 .climate()
-                .withSetpoint('occupied_heating_setpoint', 5, 30, 0.5)
+                .withSetpoint("occupied_heating_setpoint", 5, 30, 0.5)
                 .withLocalTemperature()
-                .withSystemMode(['off', 'auto', 'heat'])
-                .withRunningState(['idle', 'heat'])
+                .withSystemMode(["off", "auto", "heat"])
+                .withRunningState(["idle", "heat"])
                 .withPiHeatingDemand(),
         ],
         configure: async (device, coordinatorEndpoint) => {
             const endpoint = device.getEndpoint(25);
-            const binds = ['genBasic', 'genIdentify', 'genGroups', 'hvacThermostat', 'hvacUserInterfaceCfg', 'msTemperatureMeasurement'];
+            const binds = ["genBasic", "genIdentify", "genGroups", "hvacThermostat", "hvacUserInterfaceCfg", "msTemperatureMeasurement"];
             await reporting.bind(endpoint, coordinatorEndpoint, binds);
 
             // Those exact parameters (min/max/change) are required for reporting to work with Stelpro Ki
@@ -111,9 +110,9 @@ const definitions: DefinitionWithExtend[] = [
             await reporting.thermostatPIHeatingDemand(endpoint);
             await reporting.thermostatKeypadLockMode(endpoint);
             // cluster 0x0201 attribute 0x401c
-            await endpoint.configureReporting('hvacThermostat', [
+            await endpoint.configureReporting("hvacThermostat", [
                 {
-                    attribute: 'StelproSystemMode',
+                    attribute: "StelproSystemMode",
                     minimumReportInterval: constants.repInterval.MINUTE,
                     maximumReportInterval: constants.repInterval.HOUR,
                     reportableChange: 1,
@@ -122,11 +121,11 @@ const definitions: DefinitionWithExtend[] = [
         },
     },
     {
-        zigbeeModel: ['STZB402+', 'STZB402'],
-        model: 'STZB402',
-        vendor: 'Stelpro',
-        description: 'Ki, line-voltage thermostat',
-        fromZigbee: [legacy.fz.stelpro_thermostat, legacy.fz.hvac_user_interface, fz.humidity],
+        zigbeeModel: ["STZB402+", "STZB402"],
+        model: "STZB402",
+        vendor: "Stelpro",
+        description: "Ki, line-voltage thermostat",
+        fromZigbee: [fz.stelpro_thermostat, fz.hvac_user_interface, fz.humidity],
         toZigbee: [
             tz.thermostat_local_temperature,
             tz.thermostat_occupancy,
@@ -143,14 +142,14 @@ const definitions: DefinitionWithExtend[] = [
             e.humidity(),
             e
                 .climate()
-                .withSetpoint('occupied_heating_setpoint', 5, 30, 0.5)
+                .withSetpoint("occupied_heating_setpoint", 5, 30, 0.5)
                 .withLocalTemperature()
-                .withSystemMode(['off', 'auto', 'heat'])
-                .withRunningState(['idle', 'heat']),
+                .withSystemMode(["off", "auto", "heat"])
+                .withRunningState(["idle", "heat"]),
         ],
         configure: async (device, coordinatorEndpoint) => {
             const endpoint = device.getEndpoint(25);
-            const binds = ['genBasic', 'genIdentify', 'genGroups', 'hvacThermostat', 'hvacUserInterfaceCfg', 'msTemperatureMeasurement'];
+            const binds = ["genBasic", "genIdentify", "genGroups", "hvacThermostat", "hvacUserInterfaceCfg", "msTemperatureMeasurement"];
             await reporting.bind(endpoint, coordinatorEndpoint, binds);
 
             // Those exact parameters (min/max/change) are required for reporting to work with Stelpro Ki
@@ -160,9 +159,9 @@ const definitions: DefinitionWithExtend[] = [
             await reporting.thermostatPIHeatingDemand(endpoint);
             await reporting.thermostatKeypadLockMode(endpoint);
             // cluster 0x0201 attribute 0x401c
-            await endpoint.configureReporting('hvacThermostat', [
+            await endpoint.configureReporting("hvacThermostat", [
                 {
-                    attribute: 'StelproSystemMode',
+                    attribute: "StelproSystemMode",
                     minimumReportInterval: constants.repInterval.MINUTE,
                     maximumReportInterval: constants.repInterval.HOUR,
                     reportableChange: 1,
@@ -171,11 +170,11 @@ const definitions: DefinitionWithExtend[] = [
         },
     },
     {
-        zigbeeModel: ['MaestroStat'],
-        model: 'SMT402',
-        vendor: 'Stelpro',
-        description: 'Maestro, line-voltage thermostat',
-        fromZigbee: [legacy.fz.stelpro_thermostat, legacy.fz.hvac_user_interface, fz.humidity],
+        zigbeeModel: ["MaestroStat"],
+        model: "SMT402",
+        vendor: "Stelpro",
+        description: "Maestro, line-voltage thermostat",
+        fromZigbee: [fz.stelpro_thermostat, fz.hvac_user_interface, fz.humidity],
         toZigbee: [
             tz.thermostat_local_temperature,
             tz.thermostat_occupancy,
@@ -192,21 +191,21 @@ const definitions: DefinitionWithExtend[] = [
             e.humidity(),
             e
                 .climate()
-                .withSetpoint('occupied_heating_setpoint', 5, 30, 0.5)
+                .withSetpoint("occupied_heating_setpoint", 5, 30, 0.5)
                 .withLocalTemperature()
-                .withSystemMode(['off', 'auto', 'heat'])
-                .withRunningState(['idle', 'heat']),
+                .withSystemMode(["off", "auto", "heat"])
+                .withRunningState(["idle", "heat"]),
         ],
         configure: async (device, coordinatorEndpoint) => {
             const endpoint = device.getEndpoint(25);
             const binds = [
-                'genBasic',
-                'genIdentify',
-                'genGroups',
-                'hvacThermostat',
-                'hvacUserInterfaceCfg',
-                'msRelativeHumidity',
-                'msTemperatureMeasurement',
+                "genBasic",
+                "genIdentify",
+                "genGroups",
+                "hvacThermostat",
+                "hvacUserInterfaceCfg",
+                "msRelativeHumidity",
+                "msTemperatureMeasurement",
             ];
             await reporting.bind(endpoint, coordinatorEndpoint, binds);
 
@@ -218,9 +217,9 @@ const definitions: DefinitionWithExtend[] = [
             await reporting.thermostatPIHeatingDemand(endpoint);
             await reporting.thermostatKeypadLockMode(endpoint);
             // cluster 0x0201 attribute 0x401c
-            await endpoint.configureReporting('hvacThermostat', [
+            await endpoint.configureReporting("hvacThermostat", [
                 {
-                    attribute: 'StelproSystemMode',
+                    attribute: "StelproSystemMode",
                     minimumReportInterval: constants.repInterval.MINUTE,
                     maximumReportInterval: constants.repInterval.HOUR,
                     reportableChange: 1,
@@ -229,10 +228,10 @@ const definitions: DefinitionWithExtend[] = [
         },
     },
     {
-        zigbeeModel: ['SORB'],
-        model: 'SORB',
-        vendor: 'Stelpro',
-        description: 'ORLÉANS fan heater',
+        zigbeeModel: ["SORB"],
+        model: "SORB",
+        vendor: "Stelpro",
+        description: "ORLÉANS fan heater",
         fromZigbee: [fz.stelpro_thermostat, fz.hvac_user_interface],
         toZigbee: [
             tz.thermostat_local_temperature,
@@ -247,14 +246,14 @@ const definitions: DefinitionWithExtend[] = [
             e.keypad_lockout(),
             e
                 .climate()
-                .withSetpoint('occupied_heating_setpoint', 5, 30, 0.5)
+                .withSetpoint("occupied_heating_setpoint", 5, 30, 0.5)
                 .withLocalTemperature()
-                .withSystemMode(['off', 'auto', 'heat'])
-                .withRunningState(['idle', 'heat']),
+                .withSystemMode(["off", "auto", "heat"])
+                .withRunningState(["idle", "heat"]),
         ],
         configure: async (device, coordinatorEndpoint) => {
             const endpoint = device.getEndpoint(25);
-            const binds = ['genBasic', 'genIdentify', 'genGroups', 'hvacThermostat', 'hvacUserInterfaceCfg', 'msTemperatureMeasurement'];
+            const binds = ["genBasic", "genIdentify", "genGroups", "hvacThermostat", "hvacUserInterfaceCfg", "msTemperatureMeasurement"];
             await reporting.bind(endpoint, coordinatorEndpoint, binds);
 
             // Those exact parameters (min/max/change) are required for reporting to work with Stelpro SORB
@@ -264,9 +263,9 @@ const definitions: DefinitionWithExtend[] = [
             await reporting.thermostatPIHeatingDemand(endpoint);
             await reporting.thermostatKeypadLockMode(endpoint);
             // cluster 0x0201 attribute 0x401c
-            await endpoint.configureReporting('hvacThermostat', [
+            await endpoint.configureReporting("hvacThermostat", [
                 {
-                    attribute: 'StelproSystemMode',
+                    attribute: "StelproSystemMode",
                     minimumReportInterval: constants.repInterval.MINUTE,
                     maximumReportInterval: constants.repInterval.HOUR,
                     reportableChange: 1,
@@ -275,11 +274,11 @@ const definitions: DefinitionWithExtend[] = [
         },
     },
     {
-        zigbeeModel: ['SMT402AD'],
-        model: 'SMT402AD',
-        vendor: 'Stelpro',
-        description: 'Maestro, line-voltage thermostat',
-        fromZigbee: [legacy.fz.stelpro_thermostat, legacy.fz.hvac_user_interface, fz.humidity],
+        zigbeeModel: ["SMT402AD"],
+        model: "SMT402AD",
+        vendor: "Stelpro",
+        description: "Maestro, line-voltage thermostat",
+        fromZigbee: [fz.stelpro_thermostat, fz.hvac_user_interface, fz.humidity],
         toZigbee: [
             tz.thermostat_local_temperature,
             tz.thermostat_occupancy,
@@ -296,21 +295,21 @@ const definitions: DefinitionWithExtend[] = [
             e.humidity(),
             e
                 .climate()
-                .withSetpoint('occupied_heating_setpoint', 5, 30, 0.5)
+                .withSetpoint("occupied_heating_setpoint", 5, 30, 0.5)
                 .withLocalTemperature()
-                .withSystemMode(['off', 'auto', 'heat'])
-                .withRunningState(['idle', 'heat']),
+                .withSystemMode(["off", "auto", "heat"])
+                .withRunningState(["idle", "heat"]),
         ],
         configure: async (device, coordinatorEndpoint) => {
             const endpoint = device.getEndpoint(25);
             const binds = [
-                'genBasic',
-                'genIdentify',
-                'genGroups',
-                'hvacThermostat',
-                'hvacUserInterfaceCfg',
-                'msRelativeHumidity',
-                'msTemperatureMeasurement',
+                "genBasic",
+                "genIdentify",
+                "genGroups",
+                "hvacThermostat",
+                "hvacUserInterfaceCfg",
+                "msRelativeHumidity",
+                "msTemperatureMeasurement",
             ];
             await reporting.bind(endpoint, coordinatorEndpoint, binds);
 
@@ -322,9 +321,9 @@ const definitions: DefinitionWithExtend[] = [
             await reporting.thermostatPIHeatingDemand(endpoint);
             await reporting.thermostatKeypadLockMode(endpoint);
             // cluster 0x0201 attribute 0x401c
-            await endpoint.configureReporting('hvacThermostat', [
+            await endpoint.configureReporting("hvacThermostat", [
                 {
-                    attribute: 'StelproSystemMode',
+                    attribute: "StelproSystemMode",
                     minimumReportInterval: constants.repInterval.MINUTE,
                     maximumReportInterval: constants.repInterval.HOUR,
                     reportableChange: 1,
@@ -333,6 +332,3 @@ const definitions: DefinitionWithExtend[] = [
         },
     },
 ];
-
-export default definitions;
-module.exports = definitions;
